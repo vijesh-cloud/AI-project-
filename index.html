@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimized AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chat-container {
+            height: calc(100vh - 180px);
+        }
+        .message {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .typing-indicator {
+            display: none;
+        }
+        .typing-indicator.active {
+            display: flex;
+        }
+        .dot {
+            animation: typing 1.4s infinite;
+        }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+        .stop-button {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .streaming-response {
+            border-left: 3px solid #3b82f6;
+            background: rgba(241, 245, 249, 0.5);
+        }
+        .performance-indicator {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        /* Smooth scrolling for messages */
+        .chat-container {
+            scroll-behavior: smooth;
+        }
+        /* Focus styles for accessibility */
+        textarea:focus, button:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .dark\:bg-gray-800 {
+                background-color: #1e293b;
+            }
+            .dark\:bg-gray-700 {
+                background-color: #334155;
+            }
+            .dark\:text-white {
+                color: #ffffff;
+            }
+            .dark\:text-gray-300 {
+                color: #d1d5db;
+            }
+            .dark\:border-gray-600 {
+                border-color: #4b5563;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900">
+    <div class="container mx-auto max-w-4xl p-4">
+        <!-- Header with improved contrast -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-semibold text-gray-800 dark:text-white">Optimized AI Assistant</h1>
+                        <p class="text-sm text-gray-500 dark:text-gray-300">
+                            Powered by Ollama • <span id="status" class="text-red-500 dark:text-red-400">Disconnected</span>
+                            <span id="performance" class="performance-indicator ml-2"></span>
+                        </p>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="stopBtn" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition stop-button hidden" aria-label="Stop generating response">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        Stop
+                    </button>
+                    <button id="clearBtn" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition" aria-label="Clear conversation">
+                        Clear Chat
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Container with improved dark mode -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+            <div id="chatContainer" class="chat-container overflow-y-auto p-4 space-y-4">
+                <!-- Welcome Message with more guidance -->
+                <div class="message flex items-start space-x-3">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        <p class="text-gray-800 dark:text-gray-200">Hello! I'm your AI assistant. Here's what I can help with:</p>
+                        <ul class="mt-2 list-disc list-inside text-gray-700 dark:text-gray-300 text-sm">
+                            <li>Answer questions on many topics</li>
+                            <li>Generate and explain code</li>
+                            <li>Help with creative writing</li>
+                            <li>Analyze and summarize content</li>
+                        </ul>
+                        <p class="mt-2 text-gray-600 dark:text-gray-400 text-sm">Tip: You can stop responses anytime using the Stop button.</p>
+                    </div>
+                </div>
+
+                <!-- Typing Indicator with improved contrast -->
+                <div id="typingIndicator" class="typing-indicator items-start space-x-3">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
+                        <div class="flex items-center space-x-2">
+                            <div class="flex space-x-1">
+                                <div class="w-2 h-2 bg-gray-400 rounded-full dot"></div>
+                                <div class="w-2 h-2 bg-gray-400 rounded-full dot"></div>
+                                <div class="w-2 h-2 bg-gray-400 rounded-full dot"></div>
+                            </div>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">AI is thinking...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area with better mobile support -->
+            <div class="border-t dark:border-gray-600 p-4">
+                <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                    <div class="flex-1 relative">
+                        <textarea 
+                            id="messageInput" 
+                            placeholder="Type your message here..." 
+                            class="w-full resize-none border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            rows="2"
+                            maxlength="10000"
+                            aria-label="Type your message"
+                        ></textarea>
+                        <div class="absolute bottom-2 right-2 bg-white dark:bg-gray-700 px-1 rounded text-xs text-gray-500 dark:text-gray-400">
+                            <span id="charCount">0</span>/10000
+                        </div>
+                    </div>
+                    <div class="flex sm:flex-col space-x-2 sm:space-x-0 sm:space-y-2">
+                        <button 
+                            id="sendBtn" 
+                            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-none"
+                            disabled
+                            aria-label="Send message"
+                        >
+                            <svg class="w-5 h-5 inline sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                            <span class="hidden sm:inline">Send</span>
+                        </button>
+                        <button 
+                            id="micBtn"
+                            class="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition hidden sm:block"
+                            aria-label="Start voice input"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2 flex justify-between items-center">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        <span id="responseTime"></span>
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        <span id="modelInfo"></span>
+                    </div>
+                </div>
+                <!-- Suggested prompts -->
+                <div id="suggestedPrompts" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button class="prompt-btn text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1 rounded-full transition" data-prompt="Explain quantum computing in simple terms">
+                        Explain quantum computing
+                    </button>
+                    <button class="prompt-btn text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1 rounded-full transition" data-prompt="Write a Python function to calculate Fibonacci numbers">
+                        Python Fibonacci
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const micBtn = document.getElementById('micBtn');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const status = document.getElementById('status');
+        const performance = document.getElementById('performance');
+        const charCount = document.getElementById('charCount');
+        const responseTime = document.getElementById('responseTime');
+        const modelInfo = document.getElementById('modelInfo');
+        const suggestedPrompts = document.getElementById('suggestedPrompts');
+        const promptButtons = document.querySelectorAll('.prompt-btn');
+
+        // State variables
+        let currentController = null;
+        let currentStreamingElement = null;
+        let startTime = null;
+        let isProcessing = false;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkStatus();
+            setInterval(checkStatus, 30000); // Check every 30 seconds
+            
+            // Load any saved conversation
+            loadConversation();
+            
+            // Focus the input field
+            messageInput.focus();
+        });
+
+        // Check connection status
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/models');
+                if (response.ok) {
+                    status.textContent = 'Connected';
+                    status.className = 'text-green-500 dark:text-green-400';
+                    
+                    const data = await response.json();
+                    if (data.models && data.models.length > 0) {
+                        performance.textContent = `Model: ${data.models[0].name}`;
+                        modelInfo.textContent = `Using: ${data.models[0].name}`;
+                    }
+                } else {
+                    status.textContent = 'Ollama Error';
+                    status.className = 'text-red-500 dark:text-red-400';
+                }
+            } catch (error) {
+                status.textContent = 'Disconnected';
+                status.className = 'text-red-500 dark:text-red-400';
+            }
+        }
+
+        // Update character count
+        messageInput.addEventListener('input', () => {
+            const count = messageInput.value.length;
+            charCount.textContent = count;
+            sendBtn.disabled = count === 0 || count > 10000 || isProcessing;
+            
+            // Hide suggested prompts when typing
+            if (count > 0) {
+                suggestedPrompts.classList.add('hidden');
+            } else {
+                suggestedPrompts.classList.remove('hidden');
+            }
+        });
+
+        // Auto-resize textarea
+        messageInput.addEventListener('input', () => {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = `${Math.min(messageInput.scrollHeight, 150)}px`;
+        });
+
+        // Handle Enter key (Shift+Enter for new line)
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !isProcessing) {
+                e.preventDefault();
+                if (!sendBtn.disabled) {
+                    sendMessage();
+                }
+            }
+        });
+
+        // Send message with streaming
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || isProcessing) return;
+
+            isProcessing = true;
+            startTime = Date.now();
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            
+            // Clear input and reset UI
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            charCount.textContent = '0';
+            sendBtn.disabled = true;
+            suggestedPrompts.classList.remove('hidden');
+
+            // Show typing indicator and stop button
+            typingIndicator.classList.add('active');
+            stopBtn.classList.remove('hidden');
+            scrollToBottom();
+
+            // Create abort controller
+            currentController = new AbortController();
+
+            try {
+                const response = await fetch('/api/chat/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message }),
+                    signal: currentController.signal
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                typingIndicator.classList.remove('active');
+                currentStreamingElement = createStreamingMessage();
+                
+                // Process stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullResponse = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.trim() === '') continue;
+                        
+                        try {
+                            const data = JSON.parse(line);
+                            if (data.content) {
+                                fullResponse += data.content;
+                                updateStreamingMessage(currentStreamingElement, fullResponse);
+                                scrollToBottom();
+                            }
+                            if (data.done) {
+                                finalizeStreamingMessage(currentStreamingElement);
+                                saveMessageToHistory(message, fullResponse);
+                                break;
+                            }
+                        } catch (e) {
+                            console.error('Error parsing JSON:', e);
+                        }
+                    }
+                }
+
+                // Update response time
+                const endTime = Date.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+                responseTime.textContent = `Response time: ${duration}s`;
+
+            } catch (error) {
+                typingIndicator.classList.remove('active');
+                
+                if (error.name === 'AbortError') {
+                    if (currentStreamingElement) {
+                        finalizeStreamingMessage(currentStreamingElement, true);
+                    } else {
+                        addMessage('Response stopped by user.', 'system');
+                    }
+                } else {
+                    addMessage(`Error: ${error.message}`, 'error');
+                }
+            } finally {
+                // Reset state
+                stopBtn.classList.add('hidden');
+                sendBtn.disabled = false;
+                currentController = null;
+                currentStreamingElement = null;
+                isProcessing = false;
+                messageInput.focus();
+            }
+        }
+
+        // Stop current request
+        function stopRequest() {
+            if (currentController) {
+                currentController.abort();
+            }
+        }
+
+        // Create streaming message element
+        function createStreamingMessage() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message flex items-start space-x-3';
+            
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1 streaming-response rounded-lg p-3">
+                    <p class="text-gray-800 dark:text-gray-200 whitespace-pre-wrap streaming-text"></p>
+                    <div class="streaming-cursor inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse"></div>
+                </div>
+            `;
+
+            chatContainer.insertBefore(messageDiv, typingIndicator);
+            return messageDiv;
+        }
+
+        // Update streaming message
+        function updateStreamingMessage(element, content) {
+            const textElement = element.querySelector('.streaming-text');
+            textElement.textContent = content;
+        }
+
+        // Finalize streaming message
+        function finalizeStreamingMessage(element, stopped = false) {
+            const cursor = element.querySelector('.streaming-cursor');
+            const container = element.querySelector('.streaming-response');
+            
+            if (cursor) cursor.remove();
+            if (container) {
+                container.classList.remove('streaming-response');
+                container.classList.add('bg-gray-100', 'dark:bg-gray-700');
+            }
+            
+            if (stopped) {
+                const textElement = element.querySelector('.streaming-text');
+                textElement.textContent += '\n\n[Response stopped]';
+            }
+        }
+
+        // Add message to chat
+        function addMessage(content, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message flex items-start space-x-3';
+
+            const isUser = type === 'user';
+            const isError = type === 'error';
+            const isSystem = type === 'system';
+
+            let bgColor = 'bg-gray-100 dark:bg-gray-700';
+            let iconColor = 'bg-blue-500';
+            let icon = `
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+            `;
+            
+            if (isUser) {
+                bgColor = 'bg-gray-200 dark:bg-gray-600';
+                iconColor = 'bg-gray-600 dark:bg-gray-500';
+                icon = `
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                `;
+            } else if (isError) {
+                bgColor = 'bg-red-100 dark:bg-red-900/30';
+                iconColor = 'bg-red-500';
+                icon = `
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                `;
+            } else if (isSystem) {
+                bgColor = 'bg-yellow-100 dark:bg-yellow-900/30';
+                iconColor = 'bg-yellow-500';
+                icon = `
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                `;
+            }
+
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 ${iconColor} rounded-full flex items-center justify-center flex-shrink-0">
+                    ${icon}
+                </div>
+                <div class="flex-1 ${bgColor} rounded-lg p-3">
+                    <p class="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">${escapeHtml(content)}</p>
+                </div>
+            `;
+
+            chatContainer.insertBefore(messageDiv, typingIndicator);
+            scrollToBottom();
+        }
+
+        // Save conversation to localStorage
+        function saveMessageToHistory(userMessage, aiResponse) {
+            const conversation = JSON.parse(localStorage.getItem('conversation') || '[]');
+            conversation.push({
+                user: userMessage,
+                ai: aiResponse,
+                timestamp: new Date().toISOString()
+            });
+            localStorage.setItem('conversation', JSON.stringify(conversation));
+        }
+
+        // Load conversation from localStorage
+        function loadConversation() {
+            const conversation = JSON.parse(localStorage.getItem('conversation') || '[]');
+            conversation.forEach(item => {
+                addMessage(item.user, 'user');
+                addMessage(item.ai, 'assistant');
+            });
+        }
+
+        // Clear conversation
+        async function clearConversation() {
+            if (confirm('Clear all messages?')) {
+                try {
+                    await fetch('/api/clear', { method: 'POST' });
+                    localStorage.removeItem('conversation');
+                    
+                    // Clear chat display but keep welcome message
+                    const messages = chatContainer.querySelectorAll('.message');
+                    messages.forEach((msg, index) => {
+                        if (index > 0) msg.remove();
+                    });
+                    
+                    responseTime.textContent = '';
+                } catch (error) {
+                    console.error('Error clearing chat:', error);
+                    addMessage('Failed to clear conversation', 'error');
+                }
+            }
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Scroll to bottom smoothly
+        function scrollToBottom() {
+            chatContainer.scrollTo({
+                top: chatContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        stopBtn.addEventListener('click', stopRequest);
+        clearBtn.addEventListener('click', clearConversation);
+
+        // Suggested prompt buttons
+        promptButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                messageInput.value = btn.dataset.prompt;
+                messageInput.dispatchEvent(new Event('input'));
+                messageInput.focus();
+            });
+        });
+
+        // Detect system dark mode preference
+        const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        darkModeMediaQuery.addEventListener('change', (e) => {
+            document.documentElement.classList.toggle('dark', e.matches);
+        });
+    </script>
+</body>
+</html>
